@@ -1,24 +1,26 @@
+---====
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local Players = game:GetService("Players")
 local player = Players.LocalPlayer
 local PlayerGui = player:WaitForChild("PlayerGui", 10)
 
-local iOSLikeUI = {}
-iOSLikeUI.__index = iOSLikeUI
+local iOSLauncherUI = {}
+iOSLauncherUI.__index = iOSLauncherUI
 
--- Настройки стиля iOS 16 Dark Mode
+-- Настройки стиля iOS Launcher
 local STYLE = {
-    WindowSize = UDim2.new(0, 420, 0, 520),
-    Corner = 18,
-    Padding = 12,
-    TitleSize = 20,
-    Font = Enum.Font.Gotham, -- Ближайший к San Francisco
-    BgColor = Color3.fromRGB(28, 37, 38), -- Чёрный фон iOS 16
-    ElementBg = Color3.fromRGB(44, 47, 51), -- Тёмно-серый для кнопок/тогглов
+    MainSize = UDim2.new(0, 400, 0, 400), -- Квадратный главный фрейм
+    IconSize = UDim2.new(0, 80, 0, 80), -- Размер иконок секций
+    Corner = 12,
+    Padding = 10,
+    Font = Enum.Font.Gotham,
+    BgColor = Color3.fromRGB(28, 37, 38), -- Тёмный фон
+    ElementBg = Color3.fromRGB(44, 47, 51), -- Тёмно-серый для элементов
     Accent = Color3.fromRGB(0, 122, 255), -- Синий акцент
     TextColor = Color3.fromRGB(255, 255, 255), -- Белый текст
-    SecondaryText = Color3.fromRGB(142, 142, 147) -- Серый для второстепенного текста
+    ShadowColor = Color3.fromRGB(0, 0, 0), -- Цвет тени
+    Transparency = 0.3 -- Прозрачность фона
 }
 
 -- Вспомог: rounded corner
@@ -29,196 +31,173 @@ local function addCorner(inst, radius)
     corner.Parent = inst
 end
 
+-- Вспомог: add shadow
+local function addShadow(inst)
+    if not inst then return end
+    local stroke = Instance.new("UIStroke")
+    stroke.Thickness = 1
+    stroke.Color = STYLE.ShadowColor
+    stroke.Transparency = 0.7
+    stroke.Parent = inst
+end
+
 -- Вспомог: create label
 local function createLabel(text, size, font, textSize)
     if not text then return end
     local lbl = Instance.new("TextLabel")
-    lbl.Size = size or UDim2.new(1, 0, 0, 28)
+    lbl.Size = size or UDim2.new(1, 0, 0, 20)
     lbl.BackgroundTransparency = 1
     lbl.Text = text
     lbl.Font = font or STYLE.Font
     lbl.TextSize = textSize or 14
     lbl.TextColor3 = STYLE.TextColor
-    lbl.TextXAlignment = Enum.TextXAlignment.Left
+    lbl.TextXAlignment = Enum.TextXAlignment.Center
     lbl.ClipsDescendants = true
     return lbl
 end
 
 -- Создать окно
-function iOSLikeUI:CreateWindow(title)
+function iOSLauncherUI:CreateWindow(title)
     if not PlayerGui then
         error("PlayerGui not initialized")
         return
     end
 
-    local selfObj = setmetatable({}, iOSLikeUI)
+    local selfObj = setmetatable({}, iOSLauncherUI)
     local screen = Instance.new("ScreenGui")
-    screen.Name = "iOSStyleUI"
+    screen.Name = "iOSLauncherUI"
     screen.ResetOnSpawn = false
     screen.Parent = PlayerGui
 
     local main = Instance.new("Frame")
     main.Name = "MainWindow"
-    main.Size = STYLE.WindowSize
-    main.Position = UDim2.new(0.5, -STYLE.WindowSize.X.Offset/2, 0.08, 0)
-    main.AnchorPoint = Vector2.new(0.5, 0)
+    main.Size = STYLE.MainSize
+    main.Position = UDim2.new(0.5, -STYLE.MainSize.X.Offset/2, 0.5, -STYLE.MainSize.Y.Offset/2)
+    main.AnchorPoint = Vector2.new(0.5, 0.5)
     main.BackgroundColor3 = STYLE.BgColor
-    main.BackgroundTransparency = 0.1
+    main.BackgroundTransparency = STYLE.Transparency
     main.Parent = screen
     addCorner(main, STYLE.Corner)
+    addShadow(main)
 
-    -- Title bar
-    local titleBar = Instance.new("Frame")
-    titleBar.Name = "TitleBar"
-    titleBar.Size = UDim2.new(1, 0, 0, 56)
-    titleBar.BackgroundTransparency = 1
-    titleBar.Parent = main
+    local gradient = Instance.new("UIGradient")
+    gradient.Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(28, 37, 38)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(44, 47, 51))
+    })
+    gradient.Rotation = 90
+    gradient.Parent = main
 
-    local titleLabel = createLabel(title or "Menu", UDim2.new(1, -24, 1, -12), STYLE.Font, STYLE.TitleSize)
-    titleLabel.Position = UDim2.new(0, 12, 0, 12)
-    titleLabel.Parent = titleBar
+    -- Title
+    local titleLabel = createLabel(title or "Launcher", UDim2.new(1, -20, 0, 40), STYLE.Font, 18)
+    titleLabel.Position = UDim2.new(0, 10, 0, 10)
+    titleLabel.Parent = main
 
-    -- Close button
-    local closeButton = Instance.new("TextButton")
-    closeButton.Size = UDim2.new(0, 30, 0, 30)
-    closeButton.Position = UDim2.new(1, -40, 0, 13)
-    closeButton.BackgroundColor3 = STYLE.ElementBg
-    closeButton.Text = "×"
-    closeButton.TextColor3 = STYLE.TextColor
-    closeButton.TextSize = 20
-    closeButton.Font = STYLE.Font
-    closeButton.Parent = titleBar
-    addCorner(closeButton, 15)
+    -- Grid layout for sections
+    local grid = Instance.new("UIGridLayout")
+    grid.CellSize = STYLE.IconSize
+    grid.CellPadding = UDim2.new(0, STYLE.Padding, 0, STYLE.Padding)
+    grid.HorizontalAlignment = Enum.HorizontalAlignment.Center
+    grid.VerticalAlignment = Enum.VerticalAlignment.Top
+    grid.Parent = main
+    grid.FillDirectionMaxCells = 3 -- 3 иконки в ряд
 
-    -- Content holder (Scrolling)
-    local scroller = Instance.new("ScrollingFrame")
-    scroller.Name = "Content"
-    scroller.Size = UDim2.new(1, -24, 1, -76)
-    scroller.Position = UDim2.new(0, 12, 0, 64)
-    scroller.BackgroundTransparency = 1
-    scroller.ScrollBarThickness = 6
-    scroller.ScrollBarImageColor3 = STYLE.SecondaryText
-    scroller.CanvasSize = UDim2.new(0, 0, 0, 0)
-    scroller.Parent = main
-    scroller.VerticalScrollBarPosition = Enum.VerticalScrollBarPosition.Right
-    scroller.ClipsDescendants = true
-
-    local uiList = Instance.new("UIListLayout")
-    uiList.Parent = scroller
-    uiList.SortOrder = Enum.SortOrder.LayoutOrder
-    uiList.Padding = UDim.new(0, STYLE.Padding)
+    local contentPadding = Instance.new("UIPadding")
+    contentPadding.PaddingTop = UDim.new(0, 60) -- Отступ от заголовка
+    contentPadding.Parent = main
 
     selfObj.screen = screen
     selfObj.main = main
-    selfObj.content = scroller
-    selfObj.uiList = uiList
-
-    -- Update canvas size
-    local function updateCanvas()
-        local total = uiList.AbsoluteContentSize.Y + STYLE.Padding
-        scroller.CanvasSize = UDim2.new(0, 0, 0, total)
-    end
-    uiList.Changed:Connect(updateCanvas)
-    scroller:GetPropertyChangedSignal("AbsoluteCanvasSize"):Connect(updateCanvas)
+    selfObj.grid = grid
+    selfObj.sections = {}
 
     -- Open animation
-    main.Position = UDim2.new(0.5, -STYLE.WindowSize.X.Offset/2, 0.05, 0)
-    local tweenInfo = TweenInfo.new(0.28, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
-    TweenService:Create(main, tweenInfo, {Position = UDim2.new(0.5, -STYLE.WindowSize.X.Offset/2, 0.08, 0)}):Play()
-
-    -- Close animation
-    local closeConnection
-    closeConnection = closeButton.MouseButton1Click:Connect(function()
-        local tween = TweenService:Create(main, tweenInfo, {Position = UDim2.new(0.5, -STYLE.WindowSize.X.Offset/2, 0.05, 0)})
-        tween:Play()
-        tween.Completed:Connect(function()
-            main.Visible = false
-        end)
-    end)
+    main.Position = UDim2.new(0.5, -STYLE.MainSize.X.Offset/2, 0.6, 0)
+    local tweenInfo = TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
+    TweenService:Create(main, tweenInfo, {Position = UDim2.new(0.5, -STYLE.MainSize.X.Offset/2, 0.5, -STYLE.MainSize.Y.Offset/2)}):Play()
 
     -- Toggle visibility with Insert
     local toggleConnection
     toggleConnection = UserInputService.InputBegan:Connect(function(input, processed)
         if not processed and input.KeyCode == Enum.KeyCode.Insert then
             if main.Visible then
-                local tween = TweenService:Create(main, tweenInfo, {Position = UDim2.new(0.5, -STYLE.WindowSize.X.Offset/2, 0.05, 0)})
+                local tween = TweenService:Create(main, tweenInfo, {Position = UDim2.new(0.5, -STYLE.MainSize.X.Offset/2, 0.6, 0)})
                 tween:Play()
                 tween.Completed:Connect(function()
                     main.Visible = false
                 end)
             else
                 main.Visible = true
-                TweenService:Create(main, tweenInfo, {Position = UDim2.new(0.5, -STYLE.WindowSize.X.Offset/2, 0.08, 0)}):Play()
+                TweenService:Create(main, tweenInfo, {Position = UDim2.new(0.5, -STYLE.MainSize.X.Offset/2, 0.5, -STYLE.MainSize.Y.Offset/2)}):Play()
             end
         end
     end)
 
     screen.Destroying:Connect(function()
-        if closeConnection then closeConnection:Disconnect() end
         if toggleConnection then toggleConnection:Disconnect() end
     end)
 
     return selfObj
 end
 
--- Добавить секцию
-function iOSLikeUI:AddSection(title)
-    local secFrame = Instance.new("Frame")
-    secFrame.Size = UDim2.new(1, 0, 0, 44)
-    secFrame.BackgroundTransparency = 1
-    secFrame.LayoutOrder = #self.content:GetChildren()
-    secFrame.Parent = self.content
+-- Добавить секцию (иконку)
+function iOSLauncherUI:AddSection(name)
+    local section = Instance.new("Frame")
+    section.Size = STYLE.IconSize
+    section.BackgroundColor3 = STYLE.ElementBg
+    section.BackgroundTransparency = 0.2
+    section.Parent = self.main
+    addCorner(section, STYLE.Corner)
+    addShadow(section)
 
-    local header = createLabel(title, UDim2.new(1, 0, 0, 24), STYLE.Font, 15)
-    header.TextColor3 = STYLE.SecondaryText
-    header.Parent = secFrame
+    local icon = Instance.new("ImageLabel")
+    icon.Size = UDim2.new(0, 48, 0, 48)
+    icon.Position = UDim2.new(0.5, 0, 0, 10)
+    icon.AnchorPoint = Vector2.new(0.5, 0)
+    icon.BackgroundTransparency = 1
+    icon.Image = "rbxassetid://6023426945" -- Пример иконки (замени на свою)
+    icon.Parent = section
 
-    local container = Instance.new("Frame")
-    container.Name = "SectionBody"
-    container.Size = UDim2.new(1, 0, 0, 0)
-    container.BackgroundTransparency = 1
-    container.Position = UDim2.new(0, 0, 0, 28)
-    container.Parent = secFrame
+    local label = createLabel(name, UDim2.new(1, 0, 0, 20), STYLE.Font, 12)
+    label.Position = UDim2.new(0.5, 0, 1, -20)
+    label.AnchorPoint = Vector2.new(0.5, 1)
+    label.Parent = section
+
+    local content = Instance.new("Frame")
+    content.Name = "Content"
+    content.Size = UDim2.new(1, -20, 0, 0)
+    content.Position = UDim2.new(0, 10, 1, 10)
+    content.BackgroundTransparency = 1
+    content.Visible = false
+    content.Parent = section
 
     local vlist = Instance.new("UIListLayout")
-    vlist.Parent = container
+    vlist.Parent = content
     vlist.SortOrder = Enum.SortOrder.LayoutOrder
-    vlist.Padding = UDim.new(0, 8)
+    vlist.Padding = UDim.new(0, 5)
 
-    -- Update section height
-    local function updateSectionHeight()
-        secFrame.Size = UDim2.new(1, 0, 0, vlist.AbsoluteContentSize.Y + 28 + STYLE.Padding)
-    end
-    vlist.Changed:Connect(updateSectionHeight)
+    -- Toggle content visibility
+    local isOpen = false
+    section.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            isOpen = not isOpen
+            content.Visible = isOpen
+            if isOpen then
+                local height = vlist.AbsoluteContentSize.Y + 10
+                content.Size = UDim2.new(1, -20, 0, height)
+                TweenService:Create(content, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {Size = UDim2.new(1, -20, 0, height)}):Play()
+            else
+                content.Size = UDim2.new(1, -20, 0, 0)
+            end
+        end
+    end)
 
-    function secFrame:AddButton(text, callback)
-        local btn = Instance.new("TextButton")
-        btn.Size = UDim2.new(1, 0, 0, 38)
-        btn.BackgroundColor3 = STYLE.ElementBg
-        btn.BackgroundTransparency = 0.1
-        addCorner(btn, 12)
-        btn.Font = STYLE.Font
-        btn.TextSize = 14
-        btn.Text = text or "Button"
-        btn.TextColor3 = STYLE.TextColor
-        btn.Parent = container
-
-        btn.MouseButton1Click:Connect(function()
-            local ti = TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-            local t = TweenService:Create(btn, ti, {BackgroundTransparency = 0.3})
-            t:Play()
-            t.Completed:Wait()
-            TweenService:Create(btn, ti, {BackgroundTransparency = 0.1}):Play()
-            if callback then pcall(callback) end
-        end)
-        return btn
-    end
-
-    function secFrame:AddToggle(text, default, callback)
+    -- Add elements
+    function section:AddToggle(text, default, callback)
         local row = Instance.new("Frame")
         row.Size = UDim2.new(1, 0, 0, 40)
         row.BackgroundTransparency = 1
-        row.Parent = container
+        row.Parent = content
 
         local lbl = createLabel(text, UDim2.new(0.7, 0, 1, 0))
         lbl.Position = UDim2.new(0, 0, 0, 6)
@@ -228,7 +207,7 @@ function iOSLikeUI:AddSection(title)
         togg.Size = UDim2.new(0, 50, 0, 28)
         togg.Position = UDim2.new(1, -50, 0, 6)
         togg.BackgroundColor3 = STYLE.ElementBg
-        addCorner(togg, 14)
+        addCorner(togg, STYLE.Corner)
         togg.Parent = row
         togg.Text = ""
         togg.AutoButtonColor = false
@@ -236,8 +215,8 @@ function iOSLikeUI:AddSection(title)
         local fill = Instance.new("Frame")
         fill.Size = UDim2.new(default and 0.5 or 0.24, -6, 1, -6)
         fill.Position = UDim2.new(default and 0.02 or 0.5, 3, 0, 3)
-        fill.BackgroundColor3 = default and STYLE.Accent or STYLE.SecondaryText
-        addCorner(fill, 12)
+        fill.BackgroundColor3 = default and STYLE.Accent or STYLE.ElementBg
+        addCorner(fill, STYLE.Corner - 2)
         fill.Parent = togg
 
         local state = default or false
@@ -246,7 +225,7 @@ function iOSLikeUI:AddSection(title)
             state = s
             local targetSize = s and UDim2.new(0.5, -6, 1, -6) or UDim2.new(0.24, -6, 1, -6)
             local targetPos = s and UDim2.new(0.02, 3, 0, 3) or UDim2.new(0.5, 3, 0, 3)
-            TweenService:Create(fill, TweenInfo.new(0.18, Enum.EasingStyle.Quart), {Size = targetSize, Position = targetPos, BackgroundColor3 = s and STYLE.Accent or STYLE.SecondaryText}):Play()
+            TweenService:Create(fill, TweenInfo.new(0.18, Enum.EasingStyle.Quart), {Size = targetSize, Position = targetPos, BackgroundColor3 = s and STYLE.Accent or STYLE.ElementBg}):Play()
             if callback then pcall(callback, state) end
         end
 
@@ -257,99 +236,49 @@ function iOSLikeUI:AddSection(title)
             setState(not state)
         end)
 
+        vlist.Changed:Connect(function()
+            content.Size = UDim2.new(1, -20, 0, vlist.AbsoluteContentSize.Y + 10)
+        end)
+
         return {Frame = row, Set = setState, Get = function() return state end}
     end
 
-    function secFrame:AddSlider(text, min, max, default, callback)
-        local row = Instance.new("Frame")
-        row.Size = UDim2.new(1, 0, 0, 62)
-        row.BackgroundTransparency = 1
-        row.Parent = container
+    function section:AddButton(text, callback)
+        local btn = Instance.new("TextButton")
+        btn.Size = UDim2.new(1, 0, 0, 38)
+        btn.BackgroundColor3 = STYLE.ElementBg
+        btn.BackgroundTransparency = 0.2
+        addCorner(btn, STYLE.Corner)
+        btn.Font = STYLE.Font
+        btn.TextSize = 14
+        btn.Text = text or "Button"
+        btn.TextColor3 = STYLE.TextColor
+        btn.Parent = content
 
-        local lbl = createLabel(text, UDim2.new(0.7, 0, 0, 24))
-        lbl.Parent = row
-
-        local valueLbl = createLabel(tostring(default or min or 0), UDim2.new(0, 60, 0, 24))
-        valueLbl.Position = UDim2.new(1, -60, 0, 0)
-        valueLbl.TextColor3 = STYLE.SecondaryText
-        valueLbl.TextXAlignment = Enum.TextXAlignment.Right
-        valueLbl.Parent = row
-
-        local sliderBg = Instance.new("Frame")
-        sliderBg.Size = UDim2.new(1, 0, 0, 8)
-        sliderBg.Position = UDim2.new(0, 0, 0, 28)
-        sliderBg.BackgroundColor3 = STYLE.ElementBg
-        addCorner(sliderBg, 4)
-        sliderBg.Parent = row
-
-        local fill = Instance.new("Frame")
-        fill.Size = UDim2.new(0, 0, 1, 0)
-        fill.BackgroundColor3 = STYLE.Accent
-        addCorner(fill, 4)
-        fill.Parent = sliderBg
-
-        local knob = Instance.new("ImageButton")
-        knob.Size = UDim2.new(0, 18, 0, 18)
-        knob.AnchorPoint = Vector2.new(0.5, 0.5)
-        knob.Position = UDim2.new(0, 9, 0.5, 0)
-        knob.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-        addCorner(knob, 9)
-        knob.Image = ""
-        knob.AutoButtonColor = false
-        knob.Parent = sliderBg
-
-        local value = default or min or 0
-        min = min or 0
-        max = max or 100
-
-        local function updateUIFromValue(v)
-            local frac = max > min and math.clamp((v - min) / (max - min), 0, 1) or 0
-            fill.Size = UDim2.new(frac, 0, 1, 0)
-            knob.Position = UDim2.new(frac, 0, 0.5, 0)
-            valueLbl.Text = tostring(math.floor(v))
-        end
-
-        updateUIFromValue(value)
-
-        local dragging = false
-        local beganConnection = knob.InputBegan:Connect(function(input)
-            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-                dragging = true
-            end
-        end)
-        local endedConnection = knob.InputEnded:Connect(function(input)
-            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-                dragging = false
-            end
-        end)
-        local changedConnection = UserInputService.InputChanged:Connect(function(input)
-            if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-                local abs = sliderBg.AbsolutePosition.X
-                local width = sliderBg.AbsoluteSize.X
-                local mouseX = input.Position.X
-                local rel = math.clamp((mouseX - abs) / width, 0, 1)
-                value = math.floor(min + (max - min) * rel)
-                updateUIFromValue(value)
-                if callback then pcall(callback, value) end
-            end
+        btn.MouseButton1Click:Connect(function()
+            local ti = TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+            local t = TweenService:Create(btn, ti, {BackgroundTransparency = 0.4})
+            t:Play()
+            t.Completed:Wait()
+            TweenService:Create(btn, ti, {BackgroundTransparency = 0.2}):Play()
+            if callback then pcall(callback) end
         end)
 
-        row.Destroying:Connect(function()
-            if beganConnection then beganConnection:Disconnect() end
-            if endedConnection then endedConnection:Disconnect() end
-            if changedConnection then changedConnection:Disconnect() end
+        vlist.Changed:Connect(function()
+            content.Size = UDim2.new(1, -20, 0, vlist.AbsoluteContentSize.Y + 10)
         end)
 
-        return {Frame = row, Get = function() return value end, Set = function(v) value = math.clamp(math.floor(v), min, max); updateUIFromValue(value) end}
+        return btn
     end
 
-    return secFrame
+    table.insert(selfObj.sections, section)
+    return section
 end
 
 -- Убрать/скрыть окно
-function iOSLikeUI:Destroy()
+function iOSLauncherUI:Destroy()
     if self.screen then
-        local tween = TweenService:Create(self.main, TweenInfo.new(0.28, Enum.EasingStyle.Quart), {Position = UDim2.new(0.5, -STYLE.WindowSize.X.Offset/2, 0.05, 0)})
+        local tween = TweenService:Create(self.main, TweenInfo.new(0.3, Enum.EasingStyle.Quart), {Position = UDim2.new(0.5, -STYLE.MainSize.X.Offset/2, 0.6, 0)})
         tween:Play()
         tween.Completed:Connect(function()
             self.screen:Destroy()
@@ -357,4 +286,4 @@ function iOSLikeUI:Destroy()
     end
 end
 
-return iOSLikeUI
+return iOSLauncherUI
